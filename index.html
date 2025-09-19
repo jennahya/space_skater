@@ -15,7 +15,7 @@
 
         body {
             font-family: 'Press Start 2P', monospace;
-            background: #2D1B69; /* Dark purple background */
+            background: #2D1B69;
             overflow: hidden;
             height: 100vh;
             image-rendering: pixelated;
@@ -72,7 +72,7 @@
 
         #startScreen h1 {
             font-size: 3rem;
-            color: #FF6B35; /* Coral/orange color */
+            color: #FF6B35;
             margin-bottom: 3rem;
             text-shadow: 3px 3px 0px #000;
             animation: pixelGlow 2s ease-in-out infinite alternate;
@@ -241,6 +241,36 @@
             line-height: 1.5;
         }
 
+        .settings-panel {
+            background: rgba(0, 0, 0, 0.8);
+            padding: 1rem;
+            border: 2px solid #00FFFF;
+            border-radius: 5px;
+            margin-bottom: 1rem;
+            z-index: 1;
+            position: relative;
+            max-width: 400px;
+        }
+
+        .settings-panel h3 {
+            color: #00FFFF;
+            margin-bottom: 0.5rem;
+            font-size: 0.7rem;
+        }
+
+        .difficulty-slider {
+            width: 100%;
+            margin: 0.5rem 0;
+        }
+
+        .difficulty-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.5rem;
+            color: #FFFFFF;
+            margin-top: 0.3rem;
+        }
+
         button {
             background: linear-gradient(45deg, #FF6B35, #FF8C42);
             border: 3px solid #000;
@@ -293,7 +323,7 @@
         }
 
         #trickCombo {
-            top: 20px;
+            top: 100px;
             right: 20px;
             color: #ffd700;
         }
@@ -310,14 +340,19 @@
             right: 20px;
             background: rgba(150, 217, 214, 0.2);
             border: 2px solid #96D9D6;
-            padding: 10px 20px;
-            font-size: 1rem;
+            padding: 8px;
+            font-size: 1.5rem;
             color: #96D9D6;
             z-index: 10;
             cursor: pointer;
-            border-radius: 25px;
+            border-radius: 5px;
             transition: all 0.3s ease;
             font-family: 'Press Start 2P', monospace;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         #pauseButton:hover {
@@ -392,7 +427,6 @@
             text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
         }
 
-        /* Pixel art stars */
         .stars {
             position: absolute;
             top: 0;
@@ -438,9 +472,20 @@
                 </div>
             </div>
             
+            <div class="settings-panel">
+                <h3>DIFFICULTY SETTINGS</h3>
+                <input type="range" id="difficultySlider" class="difficulty-slider" min="0" max="100" value="30">
+                <div class="difficulty-labels">
+                    <span>EASY</span>
+                    <span>MEDIUM</span>
+                    <span>HARD</span>
+                </div>
+            </div>
+            
             <div class="instructions">
                 <h2>CONTROLS:</h2>
                 <p>← → MOVE | SPACE JUMP | A/S/D TRICKS</p>
+                <p>JUMP OVER OBSTACLES TO SURVIVE!</p>
                 <p>CHAIN TRICKS FOR BONUS POINTS!</p>
             </div>
             
@@ -452,7 +497,7 @@
             <div id="score">Score: 0</div>
             <div id="trickCombo">Combo: 0x</div>
             <div id="lives">Lives: 3</div>
-            <button id="pauseButton">PAUSE</button>
+            <button id="pauseButton">⏸</button>
             
             <div id="pauseScreen">
                 <div class="pause-popup">
@@ -485,6 +530,9 @@
         let maxCombo = 0;
         let lives = 3;
         let gameTime = 0;
+        let obstacleSpawnTimer = 0;
+        let obstacles = [];
+        let difficulty = 30; // 0-100 scale
         
         let alien = {
             x: 100,
@@ -497,12 +545,35 @@
             trick: null,
             trickProgress: 0,
             rotation: 0,
-            color: '#00FF00', // Bright neon green
+            color: '#00FF00',
             eyeColor: '#FFFFFF',
             pupilColor: '#000000'
         };
         
-        // Much faster physics
+        // Dynamic difficulty settings
+        function getDifficultySettings() {
+            const normalized = difficulty / 100; // 0 to 1
+            
+            return {
+                // Obstacle spawn rate (frames between spawns)
+                spawnRate: Math.max(60, 300 - (normalized * 240)), // 300 to 60 frames
+                
+                // Obstacle speed range
+                minSpeed: 1 + (normalized * 2), // 1 to 3
+                maxSpeed: 2 + (normalized * 3), // 2 to 5
+                
+                // Obstacle size multiplier
+                sizeMultiplier: 0.7 + (normalized * 0.6), // 0.7 to 1.3
+                
+                // Collision buffer (smaller = harder)
+                collisionBuffer: 8 - (normalized * 5), // 8 to 3 pixels
+                
+                // Points for avoiding obstacles
+                avoidPoints: 10 + Math.floor(normalized * 10) // 10 to 20
+            };
+        }
+        
+        // Physics settings
         let gravity = 0.8;
         let jumpPower = -15;
         let moveSpeed = 12;
@@ -516,6 +587,13 @@
             spin: { duration: 40, points: 150, key: 's' },
             grab: { duration: 20, points: 75, key: 'd' }
         };
+        
+        // Obstacle types
+        let obstacleTypes = [
+            { width: 25, height: 35, color: '#FF4444', name: 'rock' },
+            { width: 20, height: 30, color: '#8A2BE2', name: 'crystal' },
+            { width: 30, height: 25, color: '#FF6B35', name: 'barrier' }
+        ];
         
         // Create pixel stars
         function createStars() {
@@ -535,7 +613,18 @@
             console.log('DOM loaded, setting up game...');
             createStars();
             setupEventListeners();
+            setupDifficultySlider();
         });
+        
+        function setupDifficultySlider() {
+            const slider = document.getElementById('difficultySlider');
+            if (slider) {
+                slider.addEventListener('input', function() {
+                    difficulty = parseInt(this.value);
+                    console.log('Difficulty set to:', difficulty);
+                });
+            }
+        }
         
         function setupEventListeners() {
             console.log('Setting up event listeners...');
@@ -545,8 +634,6 @@
             if (startButton) {
                 startButton.addEventListener('click', startGame);
                 console.log('Start button listener added');
-            } else {
-                console.log('Start button not found!');
             }
             
             // Pause button
@@ -606,6 +693,8 @@
             maxCombo = 0;
             lives = 3;
             gameTime = 0;
+            obstacleSpawnTimer = 0;
+            obstacles = [];
             alien.x = 100;
             alien.y = groundY - alien.height;
             alien.velocityX = 0;
@@ -663,18 +752,84 @@
             document.getElementById('lives').textContent = `Lives: ${lives}`;
         }
         
+        function spawnObstacle() {
+            const settings = getDifficultySettings();
+            const obstacleType = obstacleTypes[Math.floor(Math.random() * obstacleTypes.length)];
+            const obstacle = {
+                x: canvas.width + 50,
+                y: groundY - (obstacleType.height * settings.sizeMultiplier),
+                width: obstacleType.width * settings.sizeMultiplier,
+                height: obstacleType.height * settings.sizeMultiplier,
+                color: obstacleType.color,
+                name: obstacleType.name,
+                speed: settings.minSpeed + Math.random() * (settings.maxSpeed - settings.minSpeed)
+            };
+            obstacles.push(obstacle);
+        }
+        
+        function updateObstacles() {
+            const settings = getDifficultySettings();
+            
+            // Spawn new obstacles based on difficulty
+            obstacleSpawnTimer++;
+            if (obstacleSpawnTimer > settings.spawnRate) {
+                spawnObstacle();
+                obstacleSpawnTimer = 0;
+            }
+            
+            // Update obstacle positions
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                const obstacle = obstacles[i];
+                obstacle.x -= obstacle.speed;
+                
+                // Remove obstacles that are off screen
+                if (obstacle.x + obstacle.width < 0) {
+                    obstacles.splice(i, 1);
+                    // Award points for successfully avoiding obstacle
+                    score += settings.avoidPoints;
+                    updateUI();
+                }
+            }
+        }
+        
+        function checkCollisions() {
+            const settings = getDifficultySettings();
+            
+            for (let obstacle of obstacles) {
+                // Check if alien collides with obstacle using dynamic collision buffer
+                if (alien.x + settings.collisionBuffer < obstacle.x + obstacle.width - settings.collisionBuffer &&
+                    alien.x + alien.width - settings.collisionBuffer > obstacle.x + settings.collisionBuffer &&
+                    alien.y + settings.collisionBuffer < obstacle.y + obstacle.height - settings.collisionBuffer &&
+                    alien.y + alien.height - settings.collisionBuffer > obstacle.y + settings.collisionBuffer) {
+                    
+                    // Collision detected!
+                    loseLife();
+                    
+                    // Remove the obstacle that was hit
+                    const index = obstacles.indexOf(obstacle);
+                    if (index > -1) {
+                        obstacles.splice(index, 1);
+                    }
+                    
+                    // Reset alien position slightly to avoid immediate re-collision
+                    alien.x = Math.max(0, alien.x - 20);
+                    break;
+                }
+            }
+        }
+        
         function updatePhysics() {
             if (gameState !== 'playing' || !canvas || isPaused) return;
             
             gameTime++;
             
-            // Handle movement - much faster and more responsive
+            // Handle movement
             if (keys['ArrowLeft'] || keys['a']) {
                 alien.velocityX = -moveSpeed;
             } else if (keys['ArrowRight'] || keys['d']) {
                 alien.velocityX = moveSpeed;
             } else {
-                alien.velocityX *= 0.95; // Less friction for smoother movement
+                alien.velocityX *= 0.95;
             }
             
             // Handle jumping
@@ -718,6 +873,12 @@
             if (backgroundOffset > canvas.width) {
                 backgroundOffset = 0;
             }
+            
+            // Update obstacles
+            updateObstacles();
+            
+            // Check for collisions
+            checkCollisions();
             
             updateTricks();
         }
@@ -789,7 +950,6 @@
         function drawBackground() {
             if (!canvas || !ctx) return;
             
-            // Consistent alien city sky gradient - no color changes
             const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
             gradient.addColorStop(0, '#1a1a2e');
             gradient.addColorStop(0.3, '#16213e');
@@ -818,7 +978,7 @@
             ctx.fillStyle = '#8B4513';
             ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
             
-            // Ground details with alien tech
+            // Ground details
             ctx.fillStyle = '#A0522D';
             for (let i = 0; i < canvas.width; i += 20) {
                 ctx.fillRect(i, groundY, 10, 5);
@@ -832,17 +992,14 @@
         function drawAlienBuilding(x, y, width, height) {
             if (!ctx) return;
             
-            // Main building
             ctx.fillStyle = '#34495E';
             ctx.fillRect(x, y, width, height);
             
-            // Alien windows - purple color
-            ctx.fillStyle = '#8A2BE2'; // Blue violet
+            ctx.fillStyle = '#8A2BE2';
             for (let i = 0; i < 4; i++) {
                 for (let j = 0; j < 6; j++) {
                     if (Math.random() > 0.3) {
                         ctx.fillRect(x + 20 + i * 25, y + 20 + j * 20, 15, 15);
-                        // Glow effect - purple glow
                         ctx.fillStyle = 'rgba(138, 43, 226, 0.3)';
                         ctx.fillRect(x + 15 + i * 25, y + 15 + j * 20, 25, 25);
                         ctx.fillStyle = '#8A2BE2';
@@ -850,7 +1007,6 @@
                 }
             }
             
-            // Alien antenna on top
             ctx.fillStyle = '#96D9D6';
             ctx.fillRect(x + width/2 - 2, y - 20, 4, 20);
             ctx.fillRect(x + width/2 - 8, y - 25, 16, 8);
@@ -859,20 +1015,58 @@
         function drawSpaceship(x, y, width, height) {
             if (!ctx) return;
             
-            // Main body
             ctx.fillStyle = '#96D9D6';
             ctx.fillRect(x, y, width, height);
             
-            // Cockpit
             ctx.fillStyle = '#E8F4F6';
             ctx.fillRect(x + 5, y + 5, 12, 12);
             ctx.fillStyle = '#000000';
             ctx.fillRect(x + 8, y + 8, 6, 6);
             
-            // Engine glow
             ctx.fillStyle = 'rgba(150, 217, 214, 0.5)';
             ctx.fillRect(x - 5, y + height/2 - 3, 8, 6);
             ctx.fillRect(x + width - 3, y + height/2 - 3, 8, 6);
+        }
+        
+        function drawObstacles() {
+            if (!ctx) return;
+            
+            for (let obstacle of obstacles) {
+                ctx.fillStyle = obstacle.color;
+                
+                if (obstacle.name === 'rock') {
+                    ctx.beginPath();
+                    ctx.moveTo(obstacle.x, obstacle.y + obstacle.height);
+                    ctx.lineTo(obstacle.x + obstacle.width/3, obstacle.y);
+                    ctx.lineTo(obstacle.x + obstacle.width*2/3, obstacle.y + obstacle.height/3);
+                    ctx.lineTo(obstacle.x + obstacle.width, obstacle.y + obstacle.height);
+                    ctx.closePath();
+                    ctx.fill();
+                    
+                    ctx.fillStyle = '#CC0000';
+                    ctx.fillRect(obstacle.x + 5, obstacle.y + 10, 6, 6);
+                    ctx.fillRect(obstacle.x + 12, obstacle.y + 18, 4, 4);
+                } else if (obstacle.name === 'crystal') {
+                    ctx.beginPath();
+                    ctx.moveTo(obstacle.x + obstacle.width/2, obstacle.y);
+                    ctx.lineTo(obstacle.x, obstacle.y + obstacle.height);
+                    ctx.lineTo(obstacle.x + obstacle.width, obstacle.y + obstacle.height);
+                    ctx.closePath();
+                    ctx.fill();
+                    
+                    ctx.fillStyle = 'rgba(138, 43, 226, 0.3)';
+                    ctx.fillRect(obstacle.x - 3, obstacle.y - 3, obstacle.width + 6, obstacle.height + 6);
+                } else if (obstacle.name === 'barrier') {
+                    ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+                    
+                    ctx.fillStyle = '#FF8C42';
+                    ctx.fillRect(obstacle.x + 3, obstacle.y + 3, obstacle.width - 6, 3);
+                    ctx.fillRect(obstacle.x + 3, obstacle.y + 12, obstacle.width - 6, 3);
+                }
+                
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+                ctx.fillRect(obstacle.x - 1, obstacle.y - 1, obstacle.width + 2, obstacle.height + 2);
+            }
         }
         
         function drawAlien() {
@@ -919,19 +1113,17 @@
             ctx.arc(width/2 - 5, height/2 + 2, 3, 0, Math.PI * 2);
             ctx.fill();
             
-            // Alien body - bright neon green with glow
-            ctx.fillStyle = alien.color; // #00FF00
-            ctx.fillRect(-width/2 + 5, -height/2 + 10, width - 10, height - 20);
-            
-            // Add neon glow effect around the body
-            ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
-            ctx.fillRect(-width/2 + 3, -height/2 + 8, width - 6, height - 16);
-            
-            // Redraw the body on top
+            // Alien body
             ctx.fillStyle = alien.color;
             ctx.fillRect(-width/2 + 5, -height/2 + 10, width - 10, height - 20);
             
-            // Antennae - also neon green
+            ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
+            ctx.fillRect(-width/2 + 3, -height/2 + 8, width - 6, height - 16);
+            
+            ctx.fillStyle = alien.color;
+            ctx.fillRect(-width/2 + 5, -height/2 + 10, width - 10, height - 20);
+            
+            // Antennae
             ctx.fillStyle = alien.color;
             ctx.fillRect(-width/2 + 8, -height/2 + 5, 3, 8);
             ctx.fillRect(width/2 - 11, -height/2 + 5, 3, 8);
@@ -970,14 +1162,14 @@
             ctx.arc(width/2 - 5, height/2 + 2, 3, 0, Math.PI * 2);
             ctx.fill();
             
-            // Alien body (slightly crouched) - neon green with glow
+            // Alien body (slightly crouched)
             ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
             ctx.fillRect(-width/2 + 3, -height/2 + 13, width - 6, height - 23);
             
             ctx.fillStyle = alien.color;
             ctx.fillRect(-width/2 + 5, -height/2 + 15, width - 10, height - 25);
             
-            // Antennae (wiggling) - neon green
+            // Antennae (wiggling)
             ctx.fillStyle = alien.color;
             ctx.fillRect(-width/2 + 8, -height/2 + 10, 3, 6);
             ctx.fillRect(width/2 - 11, -height/2 + 10, 3, 6);
@@ -1013,14 +1205,14 @@
             ctx.arc(width/2 - 5, height/2 + 2, 3, 0, Math.PI * 2);
             ctx.fill();
             
-            // Alien body (crouched and glowing gold) - neon green with glow
+            // Alien body (crouched and glowing gold)
             ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
             ctx.fillRect(-width/2 + 3, -height/2 + 18, width - 6, height - 28);
             
-            ctx.fillStyle = '#FFD700'; // Gold for grab trick
+            ctx.fillStyle = '#FFD700';
             ctx.fillRect(-width/2 + 5, -height/2 + 20, width - 10, height - 30);
             
-            // Antennae (bent down) - neon green
+            // Antennae (bent down)
             ctx.fillStyle = alien.color;
             ctx.fillRect(-width/2 + 8, -height/2 + 15, 3, 5);
             ctx.fillRect(width/2 - 11, -height/2 + 15, 3, 5);
@@ -1040,9 +1232,7 @@
         
         function drawScore() {
             if (!ctx) return;
-            
-            // REMOVED the yellow combo effect completely - no more color changes!
-            // The combo effect was causing the yellow haze
+            // Score drawing handled in updateUI
         }
         
         function gameLoop() {
@@ -1058,6 +1248,7 @@
             
             if (gameState === 'playing') {
                 drawBackground();
+                drawObstacles();
                 drawAlien();
                 drawScore();
             }
@@ -1067,7 +1258,6 @@
         document.addEventListener('keydown', (e) => {
             keys[e.key] = true;
             
-            // Handle pause key
             if (e.key.toLowerCase() === 'p') {
                 if (gameState === 'playing') {
                     if (isPaused) {
