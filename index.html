@@ -1,0 +1,1095 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Space Skater</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Press Start 2P', monospace;
+            background: #2D1B69; /* Dark purple background */
+            overflow: hidden;
+            height: 100vh;
+            image-rendering: pixelated;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: crisp-edges;
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .screen {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        #startScreen {
+            background: linear-gradient(to bottom, #4A2C7A 0%, #2D1B69 50%, #1A0B3D 100%);
+            position: relative;
+        }
+
+        #startScreen::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: 
+                repeating-linear-gradient(
+                    0deg,
+                    transparent,
+                    transparent 2px,
+                    rgba(255, 255, 255, 0.03) 2px,
+                    rgba(255, 255, 255, 0.03) 4px
+                );
+            pointer-events: none;
+        }
+
+        #startScreen h1 {
+            font-size: 3rem;
+            color: #FF6B35; /* Coral/orange color */
+            margin-bottom: 3rem;
+            text-shadow: 3px 3px 0px #000;
+            animation: pixelGlow 2s ease-in-out infinite alternate;
+            z-index: 1;
+            position: relative;
+        }
+
+        @keyframes pixelGlow {
+            from { 
+                text-shadow: 3px 3px 0px #000, 0 0 10px #FF6B35;
+            }
+            to { 
+                text-shadow: 3px 3px 0px #000, 0 0 20px #FF6B35, 0 0 30px #FF6B35;
+            }
+        }
+
+        .alien-skater {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1;
+            animation: skaterBounce 2s ease-in-out infinite;
+        }
+
+        @keyframes skaterBounce {
+            0%, 100% { transform: translate(-50%, -50%) translateY(0px); }
+            50% { transform: translate(-50%, -50%) translateY(-10px); }
+        }
+
+        .skater-sprite {
+            width: 80px;
+            height: 100px;
+            position: relative;
+        }
+
+        .skater-body {
+            width: 40px;
+            height: 50px;
+            background: #00FF00;
+            position: absolute;
+            top: 10px;
+            left: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
+        }
+
+        .skater-head {
+            width: 30px;
+            height: 30px;
+            background: #00FF00;
+            position: absolute;
+            top: 0;
+            left: 25px;
+            border-radius: 50%;
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+        }
+
+        .skater-eye {
+            width: 12px;
+            height: 12px;
+            background: #FFFFFF;
+            position: absolute;
+            top: 8px;
+            left: 9px;
+            border-radius: 50%;
+        }
+
+        .skater-pupil {
+            width: 6px;
+            height: 6px;
+            background: #000000;
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            border-radius: 50%;
+        }
+
+        .skater-antennae {
+            width: 3px;
+            height: 8px;
+            background: #00FF00;
+            position: absolute;
+            top: -5px;
+            left: 20px;
+            box-shadow: 0 0 5px rgba(0, 255, 0, 0.5);
+        }
+
+        .skater-antennae::before {
+            content: '';
+            width: 3px;
+            height: 8px;
+            background: #00FF00;
+            position: absolute;
+            top: 0;
+            left: 15px;
+            box-shadow: 0 0 5px rgba(0, 255, 0, 0.5);
+        }
+
+        .skater-skateboard {
+            width: 60px;
+            height: 8px;
+            background: #8B4513;
+            position: absolute;
+            top: 55px;
+            left: 10px;
+            border-radius: 3px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+        }
+
+        .skater-skateboard::before {
+            content: '';
+            width: 60px;
+            height: 4px;
+            background: #000000;
+            position: absolute;
+            top: 2px;
+            left: 0;
+            border-radius: 2px;
+        }
+
+        .skater-wheels {
+            width: 6px;
+            height: 6px;
+            background: #333333;
+            position: absolute;
+            top: 58px;
+            left: 15px;
+            border-radius: 50%;
+        }
+
+        .skater-wheels::after {
+            content: '';
+            width: 6px;
+            height: 6px;
+            background: #333333;
+            position: absolute;
+            top: 0;
+            left: 35px;
+            border-radius: 50%;
+        }
+
+        .instructions {
+            background: rgba(0, 0, 0, 0.7);
+            padding: 1.5rem;
+            border: 3px solid #00FFFF;
+            border-radius: 0;
+            margin-bottom: 2rem;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+            z-index: 1;
+            position: relative;
+            max-width: 600px;
+        }
+
+        .instructions h2 {
+            color: #00FFFF;
+            margin-bottom: 1rem;
+            font-size: 0.8rem;
+            text-shadow: 2px 2px 0px #000;
+        }
+
+        .instructions p {
+            color: #FFFFFF;
+            margin: 0.5rem 0;
+            font-size: 0.6rem;
+            line-height: 1.5;
+        }
+
+        button {
+            background: linear-gradient(45deg, #FF6B35, #FF8C42);
+            border: 3px solid #000;
+            padding: 1rem 2rem;
+            font-size: 1rem;
+            font-weight: bold;
+            color: #000;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 4px 4px 0px #000;
+            margin: 10px;
+            font-family: 'Press Start 2P', monospace;
+            text-shadow: none;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 6px 6px 0px #000;
+        }
+
+        button:active {
+            transform: translateY(2px);
+            box-shadow: 2px 2px 0px #000;
+        }
+
+        #gameScreen {
+            background: linear-gradient(to bottom, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            position: relative;
+        }
+
+        #gameCanvas {
+            border: 3px solid #96D9D6;
+            background: linear-gradient(to bottom, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            box-shadow: 0 0 20px rgba(150, 217, 214, 0.3);
+        }
+
+        #score, #trickCombo, #lives {
+            position: absolute;
+            color: #96D9D6;
+            font-size: 1.5rem;
+            font-weight: bold;
+            text-shadow: 0 0 10px rgba(150, 217, 214, 0.5);
+            z-index: 10;
+            font-family: 'Press Start 2P', monospace;
+        }
+
+        #score {
+            top: 20px;
+            left: 20px;
+        }
+
+        #trickCombo {
+            top: 20px;
+            right: 20px;
+            color: #ffd700;
+        }
+
+        #lives {
+            top: 60px;
+            left: 20px;
+            color: #ff6b6b;
+        }
+
+        #pauseButton {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(150, 217, 214, 0.2);
+            border: 2px solid #96D9D6;
+            padding: 10px 20px;
+            font-size: 1rem;
+            color: #96D9D6;
+            z-index: 10;
+            cursor: pointer;
+            border-radius: 25px;
+            transition: all 0.3s ease;
+            font-family: 'Press Start 2P', monospace;
+        }
+
+        #pauseButton:hover {
+            background: rgba(150, 217, 214, 0.3);
+            transform: translateY(-2px);
+        }
+
+        #pauseScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .pause-popup {
+            background: linear-gradient(45deg, #1a1a2e, #16213e);
+            padding: 3rem;
+            border-radius: 20px;
+            border: 3px solid #96D9D6;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            color: #E8F4F6;
+            min-width: 400px;
+            font-family: 'Press Start 2P', monospace;
+        }
+
+        .pause-popup h2 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            color: #96D9D6;
+            text-shadow: 0 0 10px rgba(150, 217, 214, 0.5);
+        }
+
+        .pause-popup p {
+            font-size: 1.2rem;
+            margin-bottom: 2rem;
+            color: #E8F4F6;
+        }
+
+        .pause-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+        }
+
+        .pause-buttons button {
+            font-size: 1.2rem;
+            padding: 15px 30px;
+        }
+
+        #gameOverScreen {
+            background: linear-gradient(45deg, #ff4757, #ff6b6b);
+            color: white;
+            font-family: 'Press Start 2P', monospace;
+        }
+
+        #gameOverScreen h1 {
+            font-size: 3rem;
+            margin-bottom: 2rem;
+            text-shadow: 3px 3px 0px #333;
+        }
+
+        #finalScore {
+            font-size: 2rem;
+            margin-bottom: 2rem;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Pixel art stars */
+        .stars {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .star {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: #FFFFFF;
+            animation: twinkle 2s infinite;
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="startScreen" class="screen">
+            <div class="stars" id="stars"></div>
+            <h1>SPACE SKATER</h1>
+            
+            <div class="alien-skater">
+                <div class="skater-sprite">
+                    <div class="skater-head">
+                        <div class="skater-eye">
+                            <div class="skater-pupil"></div>
+                        </div>
+                        <div class="skater-antennae"></div>
+                    </div>
+                    <div class="skater-body"></div>
+                    <div class="skater-skateboard">
+                        <div class="skater-wheels"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="instructions">
+                <h2>CONTROLS:</h2>
+                <p>← → MOVE | SPACE JUMP | A/S/D TRICKS</p>
+                <p>CHAIN TRICKS FOR BONUS POINTS!</p>
+            </div>
+            
+            <button id="startButton">START GAME</button>
+        </div>
+        
+        <div id="gameScreen" class="screen hidden">
+            <canvas id="gameCanvas"></canvas>
+            <div id="score">Score: 0</div>
+            <div id="trickCombo">Combo: 0x</div>
+            <div id="lives">Lives: 3</div>
+            <button id="pauseButton">PAUSE</button>
+            
+            <div id="pauseScreen">
+                <div class="pause-popup">
+                    <h2>GAME PAUSED</h2>
+                    <p>Take a break, space skater!</p>
+                    <div class="pause-buttons">
+                        <button id="resumeButton">CONTINUE</button>
+                        <button id="mainMenuButton">MAIN MENU</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="gameOverScreen" class="screen hidden">
+            <h1>GAME OVER</h1>
+            <div id="finalScore">Final Score: 0</div>
+            <div id="maxCombo">Best Combo: 0x</div>
+            <button id="restartButton">PLAY AGAIN</button>
+        </div>
+    </div>
+    
+    <script>
+        console.log('Space Skater Game starting...');
+        
+        let gameState = 'start';
+        let isPaused = false;
+        let canvas, ctx;
+        let score = 0;
+        let trickCombo = 0;
+        let maxCombo = 0;
+        let lives = 3;
+        let gameTime = 0;
+        
+        let alien = {
+            x: 100,
+            y: 0,
+            width: 40,
+            height: 50,
+            velocityX: 0,
+            velocityY: 0,
+            onGround: false,
+            trick: null,
+            trickProgress: 0,
+            rotation: 0,
+            color: '#00FF00', // Bright neon green
+            eyeColor: '#FFFFFF',
+            pupilColor: '#000000'
+        };
+        
+        // Much faster physics
+        let gravity = 0.8;
+        let jumpPower = -15;
+        let moveSpeed = 12;
+        let groundY = 0;
+        let backgroundOffset = 0;
+        let backgroundSpeed = 2;
+        let keys = {};
+        
+        let tricks = {
+            kickflip: { duration: 30, points: 100, key: 'a' },
+            spin: { duration: 40, points: 150, key: 's' },
+            grab: { duration: 20, points: 75, key: 'd' }
+        };
+        
+        // Create pixel stars
+        function createStars() {
+            const starsContainer = document.getElementById('stars');
+            for (let i = 0; i < 50; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                star.style.left = Math.random() * 100 + '%';
+                star.style.top = Math.random() * 100 + '%';
+                star.style.animationDelay = Math.random() * 2 + 's';
+                starsContainer.appendChild(star);
+            }
+        }
+        
+        // Wait for DOM to be ready
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded, setting up game...');
+            createStars();
+            setupEventListeners();
+        });
+        
+        function setupEventListeners() {
+            console.log('Setting up event listeners...');
+            
+            // Start button
+            const startButton = document.getElementById('startButton');
+            if (startButton) {
+                startButton.addEventListener('click', startGame);
+                console.log('Start button listener added');
+            } else {
+                console.log('Start button not found!');
+            }
+            
+            // Pause button
+            const pauseButton = document.getElementById('pauseButton');
+            if (pauseButton) {
+                pauseButton.addEventListener('click', pauseGame);
+                console.log('Pause button listener added');
+            }
+            
+            // Resume button
+            const resumeButton = document.getElementById('resumeButton');
+            if (resumeButton) {
+                resumeButton.addEventListener('click', resumeGame);
+                console.log('Resume button listener added');
+            }
+            
+            // Main menu button
+            const mainMenuButton = document.getElementById('mainMenuButton');
+            if (mainMenuButton) {
+                mainMenuButton.addEventListener('click', goToMainMenu);
+                console.log('Main menu button listener added');
+            }
+            
+            // Restart button
+            const restartButton = document.getElementById('restartButton');
+            if (restartButton) {
+                restartButton.addEventListener('click', restartGame);
+                console.log('Restart button listener added');
+            }
+        }
+        
+        function startGame() {
+            console.log('Start game function called!');
+            
+            // Initialize canvas
+            canvas = document.getElementById('gameCanvas');
+            if (!canvas) {
+                console.log('Canvas not found!');
+                return;
+            }
+            
+            ctx = canvas.getContext('2d');
+            resizeCanvas();
+            
+            // Change screens - hide start, show game
+            document.getElementById('startScreen').classList.add('hidden');
+            document.getElementById('gameScreen').classList.remove('hidden');
+            
+            // Make sure pause screen is hidden
+            document.getElementById('pauseScreen').style.display = 'none';
+            
+            // Reset game
+            gameState = 'playing';
+            isPaused = false;
+            score = 0;
+            trickCombo = 0;
+            maxCombo = 0;
+            lives = 3;
+            gameTime = 0;
+            alien.x = 100;
+            alien.y = groundY - alien.height;
+            alien.velocityX = 0;
+            alien.velocityY = 0;
+            alien.onGround = true;
+            alien.trick = null;
+            alien.trickProgress = 0;
+            alien.rotation = 0;
+            backgroundOffset = 0;
+            
+            updateUI();
+            console.log('Game started successfully!');
+        }
+        
+        function pauseGame() {
+            if (gameState !== 'playing') return;
+            
+            isPaused = true;
+            document.getElementById('pauseScreen').style.display = 'flex';
+            console.log('Game paused');
+        }
+        
+        function resumeGame() {
+            isPaused = false;
+            document.getElementById('pauseScreen').style.display = 'none';
+            console.log('Game resumed');
+        }
+        
+        function goToMainMenu() {
+            isPaused = false;
+            document.getElementById('pauseScreen').style.display = 'none';
+            document.getElementById('gameScreen').classList.add('hidden');
+            document.getElementById('startScreen').classList.remove('hidden');
+            console.log('Returned to main menu');
+        }
+        
+        function restartGame() {
+            console.log('Restarting game...');
+            document.getElementById('gameOverScreen').classList.add('hidden');
+            document.getElementById('gameScreen').classList.remove('hidden');
+            startGame();
+        }
+        
+        function resizeCanvas() {
+            if (!canvas) return;
+            canvas.width = Math.min(window.innerWidth - 20, 1200);
+            canvas.height = Math.min(window.innerHeight - 20, 800);
+            groundY = canvas.height - 100;
+            alien.y = groundY - alien.height;
+        }
+        
+        function updateUI() {
+            document.getElementById('score').textContent = `Score: ${score}`;
+            document.getElementById('trickCombo').textContent = `Combo: ${trickCombo}x`;
+            document.getElementById('lives').textContent = `Lives: ${lives}`;
+        }
+        
+        function updatePhysics() {
+            if (gameState !== 'playing' || !canvas || isPaused) return;
+            
+            gameTime++;
+            
+            // Handle movement - much faster and more responsive
+            if (keys['ArrowLeft'] || keys['a']) {
+                alien.velocityX = -moveSpeed;
+            } else if (keys['ArrowRight'] || keys['d']) {
+                alien.velocityX = moveSpeed;
+            } else {
+                alien.velocityX *= 0.95; // Less friction for smoother movement
+            }
+            
+            // Handle jumping
+            if ((keys[' '] || keys['Space']) && alien.onGround) {
+                alien.velocityY = jumpPower;
+                alien.onGround = false;
+            }
+            
+            // Apply gravity
+            if (!alien.onGround) {
+                alien.velocityY += gravity;
+            }
+            
+            // Update position
+            alien.x += alien.velocityX;
+            alien.y += alien.velocityY;
+            
+            // Ground collision
+            if (alien.y >= groundY - alien.height) {
+                alien.y = groundY - alien.height;
+                alien.velocityY = 0;
+                alien.onGround = true;
+                
+                if (alien.trick) {
+                    completeTrick();
+                }
+            }
+            
+            // Screen boundaries - lose life if fall off
+            if (alien.x < -alien.width) {
+                loseLife();
+                alien.x = 0;
+            }
+            if (alien.x > canvas.width) {
+                loseLife();
+                alien.x = canvas.width - alien.width;
+            }
+            
+            // Update background
+            backgroundOffset += backgroundSpeed;
+            if (backgroundOffset > canvas.width) {
+                backgroundOffset = 0;
+            }
+            
+            updateTricks();
+        }
+        
+        function loseLife() {
+            lives--;
+            updateUI();
+            
+            if (lives <= 0) {
+                gameOver();
+            }
+        }
+        
+        function gameOver() {
+            console.log('Game Over!');
+            gameState = 'gameOver';
+            
+            // Update final score display
+            document.getElementById('finalScore').textContent = `Final Score: ${score}`;
+            document.getElementById('maxCombo').textContent = `Best Combo: ${maxCombo}x`;
+            
+            // Show game over screen
+            document.getElementById('gameScreen').classList.add('hidden');
+            document.getElementById('gameOverScreen').classList.remove('hidden');
+        }
+        
+        function updateTricks() {
+            if (alien.trick) {
+                alien.trickProgress++;
+                if (alien.trickProgress >= tricks[alien.trick].duration) {
+                    completeTrick();
+                }
+            } else if (!alien.onGround) {
+                for (const [trickName, trickData] of Object.entries(tricks)) {
+                    if (keys[trickData.key]) {
+                        performTrick(trickName);
+                        break;
+                    }
+                }
+            }
+        }
+        
+        function performTrick(trickName) {
+            if (alien.trick || alien.onGround) return;
+            
+            alien.trick = trickName;
+            alien.trickProgress = 0;
+            trickCombo++;
+            
+            const trickPoints = tricks[trickName].points * trickCombo;
+            score += trickPoints;
+            
+            // Update max combo
+            if (trickCombo > maxCombo) {
+                maxCombo = trickCombo;
+            }
+            
+            updateUI();
+        }
+        
+        function completeTrick() {
+            if (alien.trick) {
+                alien.trick = null;
+                alien.trickProgress = 0;
+                alien.rotation = 0;
+            }
+        }
+        
+        function drawBackground() {
+            if (!canvas || !ctx) return;
+            
+            // Consistent alien city sky gradient - no color changes
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, '#1a1a2e');
+            gradient.addColorStop(0.3, '#16213e');
+            gradient.addColorStop(0.7, '#0f3460');
+            gradient.addColorStop(1, '#0a1929');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Alien city buildings
+            ctx.fillStyle = '#2C3E50';
+            for (let i = 0; i < 5; i++) {
+                const x = (i * canvas.width / 4) - backgroundOffset * 0.3;
+                const height = 150 + Math.sin(i) * 50;
+                drawAlienBuilding(x, canvas.height - height - 100, canvas.width / 4, height);
+            }
+            
+            // Floating alien spaceships
+            ctx.fillStyle = '#96D9D6';
+            for (let i = 0; i < 3; i++) {
+                const x = (i * canvas.width / 2) - backgroundOffset * 0.5;
+                const y = 80 + Math.sin(gameTime * 0.01 + i) * 20;
+                drawSpaceship(x, y, 40, 25);
+            }
+            
+            // Alien ground
+            ctx.fillStyle = '#8B4513';
+            ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
+            
+            // Ground details with alien tech
+            ctx.fillStyle = '#A0522D';
+            for (let i = 0; i < canvas.width; i += 20) {
+                ctx.fillRect(i, groundY, 10, 5);
+            }
+            
+            // Alien tech lines on ground
+            ctx.fillStyle = '#96D9D6';
+            ctx.fillRect(0, groundY + 5, canvas.width, 2);
+        }
+        
+        function drawAlienBuilding(x, y, width, height) {
+            if (!ctx) return;
+            
+            // Main building
+            ctx.fillStyle = '#34495E';
+            ctx.fillRect(x, y, width, height);
+            
+            // Alien windows - purple color
+            ctx.fillStyle = '#8A2BE2'; // Blue violet
+            for (let i = 0; i < 4; i++) {
+                for (let j = 0; j < 6; j++) {
+                    if (Math.random() > 0.3) {
+                        ctx.fillRect(x + 20 + i * 25, y + 20 + j * 20, 15, 15);
+                        // Glow effect - purple glow
+                        ctx.fillStyle = 'rgba(138, 43, 226, 0.3)';
+                        ctx.fillRect(x + 15 + i * 25, y + 15 + j * 20, 25, 25);
+                        ctx.fillStyle = '#8A2BE2';
+                    }
+                }
+            }
+            
+            // Alien antenna on top
+            ctx.fillStyle = '#96D9D6';
+            ctx.fillRect(x + width/2 - 2, y - 20, 4, 20);
+            ctx.fillRect(x + width/2 - 8, y - 25, 16, 8);
+        }
+        
+        function drawSpaceship(x, y, width, height) {
+            if (!ctx) return;
+            
+            // Main body
+            ctx.fillStyle = '#96D9D6';
+            ctx.fillRect(x, y, width, height);
+            
+            // Cockpit
+            ctx.fillStyle = '#E8F4F6';
+            ctx.fillRect(x + 5, y + 5, 12, 12);
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(x + 8, y + 8, 6, 6);
+            
+            // Engine glow
+            ctx.fillStyle = 'rgba(150, 217, 214, 0.5)';
+            ctx.fillRect(x - 5, y + height/2 - 3, 8, 6);
+            ctx.fillRect(x + width - 3, y + height/2 - 3, 8, 6);
+        }
+        
+        function drawAlien() {
+            if (!ctx) return;
+            
+            ctx.save();
+            ctx.translate(
+                alien.x + alien.width / 2,
+                alien.y + alien.height / 2
+            );
+            
+            if (alien.trick === 'spin') {
+                alien.rotation += 15;
+            }
+            
+            ctx.rotate((alien.rotation * Math.PI) / 180);
+            
+            if (alien.trick === 'kickflip') {
+                drawKickflipAlien();
+            } else if (alien.trick === 'grab') {
+                drawGrabAlien();
+            } else {
+                drawNormalAlien();
+            }
+            
+            ctx.restore();
+        }
+        
+        function drawNormalAlien() {
+            if (!ctx) return;
+            
+            const { width, height } = alien;
+            
+            // Skateboard
+            ctx.fillStyle = '#8B4513';
+            ctx.fillRect(-width/2, height/2 - 5, width, 8);
+            ctx.fillStyle = '#000';
+            ctx.fillRect(-width/2, height/2 - 3, width, 4);
+            
+            // Wheels
+            ctx.fillStyle = '#333';
+            ctx.beginPath();
+            ctx.arc(-width/2 + 5, height/2 + 2, 3, 0, Math.PI * 2);
+            ctx.arc(width/2 - 5, height/2 + 2, 3, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Alien body - bright neon green with glow
+            ctx.fillStyle = alien.color; // #00FF00
+            ctx.fillRect(-width/2 + 5, -height/2 + 10, width - 10, height - 20);
+            
+            // Add neon glow effect around the body
+            ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
+            ctx.fillRect(-width/2 + 3, -height/2 + 8, width - 6, height - 16);
+            
+            // Redraw the body on top
+            ctx.fillStyle = alien.color;
+            ctx.fillRect(-width/2 + 5, -height/2 + 10, width - 10, height - 20);
+            
+            // Antennae - also neon green
+            ctx.fillStyle = alien.color;
+            ctx.fillRect(-width/2 + 8, -height/2 + 5, 3, 8);
+            ctx.fillRect(width/2 - 11, -height/2 + 5, 3, 8);
+            
+            // Big eye
+            ctx.fillStyle = alien.eyeColor;
+            ctx.fillRect(-8, -height/2 + 15, 16, 16);
+            
+            // Pupil
+            ctx.fillStyle = alien.pupilColor;
+            ctx.fillRect(-3, -height/2 + 20, 6, 6);
+            
+            // Small mouth
+            ctx.fillStyle = alien.color;
+            ctx.fillRect(-4, -height/2 + 35, 8, 2);
+        }
+        
+        function drawKickflipAlien() {
+            if (!ctx) return;
+            
+            const { width, height } = alien;
+            
+            // Skateboard (rotating)
+            ctx.fillStyle = '#8B4513';
+            ctx.save();
+            ctx.rotate((alien.trickProgress * 12) * Math.PI / 180);
+            ctx.fillRect(-width/2, height/2 - 5, width, 8);
+            ctx.fillStyle = '#000';
+            ctx.fillRect(-width/2, height/2 - 3, width, 4);
+            ctx.restore();
+            
+            // Wheels
+            ctx.fillStyle = '#333';
+            ctx.beginPath();
+            ctx.arc(-width/2 + 5, height/2 + 2, 3, 0, Math.PI * 2);
+            ctx.arc(width/2 - 5, height/2 + 2, 3, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Alien body (slightly crouched) - neon green with glow
+            ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
+            ctx.fillRect(-width/2 + 3, -height/2 + 13, width - 6, height - 23);
+            
+            ctx.fillStyle = alien.color;
+            ctx.fillRect(-width/2 + 5, -height/2 + 15, width - 10, height - 25);
+            
+            // Antennae (wiggling) - neon green
+            ctx.fillStyle = alien.color;
+            ctx.fillRect(-width/2 + 8, -height/2 + 10, 3, 6);
+            ctx.fillRect(width/2 - 11, -height/2 + 10, 3, 6);
+            
+            // Big eye
+            ctx.fillStyle = alien.eyeColor;
+            ctx.fillRect(-8, -height/2 + 20, 16, 16);
+            
+            // Pupil
+            ctx.fillStyle = alien.pupilColor;
+            ctx.fillRect(-3, -height/2 + 25, 6, 6);
+            
+            // Small mouth
+            ctx.fillStyle = alien.color;
+            ctx.fillRect(-4, -height/2 + 40, 8, 2);
+        }
+        
+        function drawGrabAlien() {
+            if (!ctx) return;
+            
+            const { width, height } = alien;
+            
+            // Skateboard
+            ctx.fillStyle = '#8B4513';
+            ctx.fillRect(-width/2, height/2 - 5, width, 8);
+            ctx.fillStyle = '#000';
+            ctx.fillRect(-width/2, height/2 - 3, width, 4);
+            
+            // Wheels
+            ctx.fillStyle = '#333';
+            ctx.beginPath();
+            ctx.arc(-width/2 + 5, height/2 + 2, 3, 0, Math.PI * 2);
+            ctx.arc(width/2 - 5, height/2 + 2, 3, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Alien body (crouched and glowing gold) - neon green with glow
+            ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
+            ctx.fillRect(-width/2 + 3, -height/2 + 18, width - 6, height - 28);
+            
+            ctx.fillStyle = '#FFD700'; // Gold for grab trick
+            ctx.fillRect(-width/2 + 5, -height/2 + 20, width - 10, height - 30);
+            
+            // Antennae (bent down) - neon green
+            ctx.fillStyle = alien.color;
+            ctx.fillRect(-width/2 + 8, -height/2 + 15, 3, 5);
+            ctx.fillRect(width/2 - 11, -height/2 + 15, 3, 5);
+            
+            // Big eye (excited)
+            ctx.fillStyle = alien.eyeColor;
+            ctx.fillRect(-8, -height/2 + 25, 16, 16);
+            
+            // Pupil (bigger when excited)
+            ctx.fillStyle = alien.pupilColor;
+            ctx.fillRect(-4, -height/2 + 30, 8, 8);
+            
+            // Small mouth (smiling)
+            ctx.fillStyle = alien.color;
+            ctx.fillRect(-6, -height/2 + 45, 12, 2);
+        }
+        
+        function drawScore() {
+            if (!ctx) return;
+            
+            // REMOVED the yellow combo effect completely - no more color changes!
+            // The combo effect was causing the yellow haze
+        }
+        
+        function gameLoop() {
+            updatePhysics();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        function draw() {
+            if (!canvas || !ctx) return;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            if (gameState === 'playing') {
+                drawBackground();
+                drawAlien();
+                drawScore();
+            }
+        }
+        
+        // Keyboard events
+        document.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+            
+            // Handle pause key
+            if (e.key.toLowerCase() === 'p') {
+                if (gameState === 'playing') {
+                    if (isPaused) {
+                        resumeGame();
+                    } else {
+                        pauseGame();
+                    }
+                }
+                e.preventDefault();
+            }
+            
+            e.preventDefault();
+        });
+        
+        document.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+        });
+        
+        // Start game loop
+        gameLoop();
+        
+        console.log('Space Skater Game loaded successfully!');
+    </script>
+</body>
+</html>
